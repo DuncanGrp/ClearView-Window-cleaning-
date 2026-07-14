@@ -1,0 +1,6 @@
+{
+  "name": "ClearView Window Cleaning Manager",
+  "description": "Comprehensive window cleaning management platform for customers, cleaners, and administrators featuring instant booking, quote calculator, job dispatching, visual scheduler, and detailed reports.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
