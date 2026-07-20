@@ -1,0 +1,187 @@
+{
+  "entities": {
+    "ServiceItem": {
+      "title": "ServiceItem",
+      "description": "A service offered by the window cleaning business.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "basePrice": { "type": "number" },
+        "estimatedDuration": { "type": "string" }
+      },
+      "required": ["id", "name", "description", "basePrice", "estimatedDuration"]
+    },
+    "ExtraOption": {
+      "title": "ExtraOption",
+      "description": "An additional service add-on.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "price": { "type": "number" }
+      },
+      "required": ["id", "name", "price"]
+    },
+    "CleanerProfile": {
+      "title": "CleanerProfile",
+      "description": "A technician or window cleaning professional.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string" },
+        "status": { "type": "string" },
+        "rating": { "type": "number" },
+        "completedJobsCount": { "type": "integer" },
+        "color": { "type": "string" }
+      },
+      "required": ["id", "name", "phone", "email", "status", "rating", "completedJobsCount", "color"]
+    },
+    "CustomerProfile": {
+      "title": "CustomerProfile",
+      "description": "A registered customer profile.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "addresses": { "type": "array" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "name", "email", "phone", "addresses", "createdAt"]
+    },
+    "Booking": {
+      "title": "Booking",
+      "description": "A scheduled window cleaning appointment.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "customerName": { "type": "string" },
+        "customerEmail": { "type": "string" },
+        "customerPhone": { "type": "string" },
+        "address": { "type": "string" },
+        "propertyType": { "type": "string" },
+        "windowsCount": { "type": "integer" },
+        "floorsCount": { "type": "integer" },
+        "frequency": { "type": "string" },
+        "serviceName": { "type": "string" },
+        "extras": { "type": "array" },
+        "totalEstimate": { "type": "number" },
+        "price": { "type": "number" },
+        "date": { "type": "string" },
+        "timeSlot": { "type": "string" },
+        "notes": { "type": "string" },
+        "gateCode": { "type": "string" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "customerName", "customerEmail", "customerPhone", "address", "propertyType", "windowsCount", "floorsCount", "frequency", "serviceName", "extras", "totalEstimate", "price", "date", "timeSlot", "status", "createdAt"]
+    },
+    "QuoteRequest": {
+      "title": "QuoteRequest",
+      "description": "A price quotation request.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "customerName": { "type": "string" },
+        "customerEmail": { "type": "string" },
+        "customerPhone": { "type": "string" },
+        "address": { "type": "string" },
+        "propertyType": { "type": "string" },
+        "windowsCount": { "type": "integer" },
+        "floorsCount": { "type": "integer" },
+        "frequency": { "type": "string" },
+        "serviceName": { "type": "string" },
+        "extras": { "type": "array" },
+        "totalEstimate": { "type": "number" },
+        "notes": { "type": "string" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "customerName", "customerEmail", "customerPhone", "address", "propertyType", "windowsCount", "floorsCount", "frequency", "serviceName", "extras", "totalEstimate", "status", "createdAt"]
+    },
+    "AuditLog": {
+      "title": "AuditLog",
+      "description": "An administrative audit log entry.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "user": { "type": "string" },
+        "role": { "type": "string" },
+        "action": { "type": "string" },
+        "details": { "type": "string" }
+      },
+      "required": ["id", "timestamp", "user", "role", "action", "details"]
+    },
+    "BusinessSettings": {
+      "title": "BusinessSettings",
+      "description": "Operational company configurations.",
+      "type": "object",
+      "properties": {
+        "companyName": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "address": { "type": "string" },
+        "vatNumber": { "type": "string" },
+        "vatRate": { "type": "number" },
+        "workingHours": { "type": "string" }
+      },
+      "required": ["companyName", "email", "phone", "address", "vatNumber", "vatRate", "workingHours"]
+    },
+    "UserSession": {
+      "title": "UserSession",
+      "description": "The currently active session user.",
+      "type": "object",
+      "properties": {
+        "role": { "type": "string" },
+        "userId": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" }
+      },
+      "required": ["role", "userId", "name", "email"]
+    }
+  },
+  "firestore": {
+    "services/{serviceId}": {
+      "schema": "ServiceItem",
+      "description": "The active window cleaning service items catalog."
+    },
+    "extras/{extraId}": {
+      "schema": "ExtraOption",
+      "description": "Active window cleaning optional add-on configurations."
+    },
+    "cleaners/{cleanerId}": {
+      "schema": "CleanerProfile",
+      "description": "Field technicians and specialist cleaner profiles."
+    },
+    "customers/{customerId}": {
+      "schema": "CustomerProfile",
+      "description": "Registered clearview cleaning customers database."
+    },
+    "bookings/{bookingId}": {
+      "schema": "Booking",
+      "description": "Historical and active cleaning job bookings."
+    },
+    "quotes/{quoteId}": {
+      "schema": "QuoteRequest",
+      "description": "Customer-submitted cost estimation requests."
+    },
+    "auditLogs/{logId}": {
+      "schema": "AuditLog",
+      "description": "System admin activity audit logger."
+    },
+    "settings/{settingsId}": {
+      "schema": "BusinessSettings",
+      "description": "Vat rates, contact, and company operational metadata."
+    },
+    "session/{sessionId}": {
+      "schema": "UserSession",
+      "description": "Simulation tracker of active user sessions."
+    }
+  }
+}

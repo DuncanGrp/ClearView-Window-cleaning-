@@ -16,14 +16,16 @@ import { AdminCalendar } from './components/AdminCalendar';
 import { AdminCustomers } from './components/AdminCustomers';
 import { AdminServices } from './components/AdminServices';
 import { AdminPendingBookings } from './components/AdminPendingBookings';
-import { Sparkles, Calendar, BookOpen, Users, Compass, ShieldCheck, Heart, LayoutDashboard, Settings, Clock } from 'lucide-react';
+import { AdminCleaners } from './components/AdminCleaners';
+import { PortalLogin } from './components/PortalLogin';
+import { Sparkles, Calendar, BookOpen, Users, Compass, ShieldCheck, Heart, LayoutDashboard, Settings, Clock, Briefcase } from 'lucide-react';
 
 export default function App() {
   const [session, setSession] = useState<UserSession>({
-    role: 'ADMIN', // bootstrapped as ADMIN for full visual preview on first load
-    userId: 'admin-1',
-    name: 'Business Owner (Admin)',
-    email: 'admin@clearviewcleaning.co.uk'
+    role: 'GUEST',
+    userId: 'guest-1',
+    name: 'Guest Visitor',
+    email: ''
   });
 
   // Global app datasets
@@ -38,7 +40,8 @@ export default function App() {
   // Flow & UI states
   const [showBookingWizard, setShowBookingWizard] = useState(false);
   const [prefilledBookingData, setPrefilledBookingData] = useState<any>(undefined);
-  const [adminTab, setAdminTab] = useState<'dashboard' | 'calendar' | 'customers' | 'services' | 'pending'>('dashboard');
+  const [adminTab, setAdminTab] = useState<'dashboard' | 'calendar' | 'customers' | 'services' | 'pending' | 'cleaners'>('dashboard');
+  const [showLogin, setShowLogin] = useState(false);
 
   // FCM simulated notification list
   const [notifications, setNotifications] = useState<Array<{ id: string; title: string; body: string; time: string; read: boolean }>>([
@@ -88,8 +91,8 @@ export default function App() {
       mockSession = {
         role: 'ADMIN',
         userId: 'admin-1',
-        name: 'Business Owner (Admin)',
-        email: 'admin@clearviewcleaning.co.uk'
+        name: 'Thomas Higgins',
+        email: 'ownertest@clearview.com'
       };
     } else if (role === 'CLEANER') {
       mockSession = {
@@ -103,8 +106,8 @@ export default function App() {
       mockSession = {
         role: 'CUSTOMER',
         userId: 'cust-1',
-        name: 'Tyler Troth',
-        email: 'tylertroth2929@gmail.com',
+        name: 'Thomas Higgins',
+        email: 'thomas.higgins@outlook.com',
         phone: '+44 7700 900155',
         addresses: ['29 High Street, Guildford, GU1 3AJ']
       };
@@ -123,7 +126,7 @@ export default function App() {
       setShowBookingWizard(false);
       
       // Trigger instant FCM welcome simulation
-      const text = `Now viewing application as ${role === 'ADMIN' ? 'Administrator' : role === 'CLEANER' ? 'Technician Dave Carter' : role === 'CUSTOMER' ? 'Client Tyler Troth' : 'Guest Visitor'}.`;
+      const text = `Now viewing application as ${role === 'ADMIN' ? 'Administrator Thomas Higgins' : role === 'CLEANER' ? 'Technician Dave Carter' : role === 'CUSTOMER' ? 'Client Thomas Higgins' : 'Guest Visitor'}.`;
       handlePushNotification('Session Persona Switched', text);
     } catch (err) {
       console.error(err);
@@ -159,6 +162,17 @@ export default function App() {
         onSwitchRole={handleSwitchRole}
         notifications={notifications}
         onMarkNotificationsRead={handleMarkNotificationsRead}
+        onOpenLogin={() => setShowLogin(true)}
+        onLogOut={async () => {
+          const guestSess = await Api.switchSession({
+            role: 'GUEST',
+            userId: 'guest-' + Date.now(),
+            name: 'Guest Visitor',
+            email: ''
+          });
+          setSession(guestSess);
+          handlePushNotification('Signed Out', 'You have successfully signed out of the portal.');
+        }}
       />
 
       {/* Main Role-Based Router Containers */}
@@ -342,6 +356,15 @@ export default function App() {
                 <Settings className="h-4 w-4" />
                 Packages & Quotes
               </button>
+              <button
+                onClick={() => setAdminTab('cleaners')}
+                className={`pb-3 border-b-2 px-1 flex items-center gap-2 cursor-pointer ${
+                  adminTab === 'cleaners' ? 'border-indigo-600 text-indigo-600' : 'border-transparent hover:text-slate-800'
+                }`}
+              >
+                <Briefcase className="h-4 w-4" />
+                Technician Roster
+              </button>
             </div>
 
             {/* Admin views switch */}
@@ -392,6 +415,14 @@ export default function App() {
                   onSendFCMNotification={handlePushNotification}
                 />
               )}
+
+              {adminTab === 'cleaners' && (
+                <AdminCleaners
+                  cleaners={cleaners}
+                  onRefreshCleaners={loadAllData}
+                  onSendFCMNotification={handlePushNotification}
+                />
+              )}
             </div>
 
           </div>
@@ -414,6 +445,16 @@ export default function App() {
           </div>
         </div>
       </footer>
+
+      {showLogin && (
+        <PortalLogin
+          onLoginSuccess={(sess) => {
+            setSession(sess);
+            handlePushNotification('Portal Access Granted', `Logged in as ${sess.name} (${sess.role}).`);
+          }}
+          onClose={() => setShowLogin(false)}
+        />
+      )}
 
     </div>
   );

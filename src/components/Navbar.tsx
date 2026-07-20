@@ -12,13 +12,17 @@ interface NavbarProps {
   onSwitchRole: (role: UserRole) => void;
   notifications: Array<{ id: string; title: string; body: string; time: string; read: boolean }>;
   onMarkNotificationsRead: () => void;
+  onOpenLogin?: () => void;
+  onLogOut?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
   currentSession,
   onSwitchRole,
   notifications,
-  onMarkNotificationsRead
+  onMarkNotificationsRead,
+  onOpenLogin,
+  onLogOut
 }) => {
   const [showRoleSelector, setShowRoleSelector] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -43,7 +47,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     },
     {
       role: 'CUSTOMER',
-      name: 'Tyler Troth (Customer)',
+      name: 'Thomas Higgins (Customer)',
       desc: 'Book cleanings, view progress, compare photos, pay invoices',
       icon: User,
       color: 'text-blue-600 bg-blue-50 border-blue-200 hover:bg-blue-100'
@@ -202,6 +206,26 @@ export const Navbar: React.FC<NavbarProps> = ({
               )}
             </div>
 
+            {/* Business Portal Action Button */}
+            {currentSession.role === 'GUEST' ? (
+              <button
+                id="portal-signin-btn"
+                onClick={onOpenLogin}
+                className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-sky-400 to-blue-600 px-4 py-2 text-xs font-bold text-white hover:brightness-110 shadow-md shadow-sky-500/10 cursor-pointer transition-all"
+              >
+                <Shield className="h-4 w-4" />
+                Business Portal Login
+              </button>
+            ) : (
+              <button
+                id="portal-signout-btn"
+                onClick={onLogOut}
+                className="flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800 px-4 py-2 text-xs font-bold text-slate-300 hover:text-white hover:bg-slate-750 cursor-pointer transition-all"
+              >
+                Sign Out
+              </button>
+            )}
+
             {/* User Logged-in Tag */}
             <div className="flex items-center gap-3 border-l border-slate-700 pl-4 text-xs">
               <div className="h-8 w-8 rounded-full bg-slate-700 flex items-center justify-center font-bold text-sky-300">
@@ -280,6 +304,28 @@ export const Navbar: React.FC<NavbarProps> = ({
                   );
                 })}
               </div>
+            </div>
+
+            {/* Mobile Portal Action Button */}
+            <div className="border-t border-slate-800 pt-4">
+              {currentSession.role === 'GUEST' ? (
+                <button
+                  id="mobile-portal-signin-btn"
+                  onClick={() => { onOpenLogin?.(); setMobileMenuOpen(false); }}
+                  className="w-full flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-sky-400 to-blue-600 py-3 text-xs font-bold text-white cursor-pointer hover:brightness-110"
+                >
+                  <Shield className="h-4 w-4" />
+                  Business Portal Login
+                </button>
+              ) : (
+                <button
+                  id="mobile-portal-signout-btn"
+                  onClick={() => { onLogOut?.(); setMobileMenuOpen(false); }}
+                  className="w-full flex items-center justify-center gap-1.5 rounded-xl border border-slate-800 bg-slate-800 py-3 text-xs font-bold text-slate-300 cursor-pointer hover:bg-slate-750"
+                >
+                  Sign Out
+                </button>
+              )}
             </div>
 
           </div>

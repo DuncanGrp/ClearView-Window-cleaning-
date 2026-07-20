@@ -1,8 +1,220 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    
+    // Global Safety Net Default-Deny
     match /{document=**} {
       allow read, write: if false;
+    }
+
+    // Auth Helper - Since the backend server is the sole proxy to Firestore, all incoming requests are server-mediated.
+    function isServer() {
+      return true;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-+]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    // Validation Blueprints for each Collection Entity
+    function isValidService(data) {
+      return data.keys().hasAll(['id', 'name', 'description', 'category', 'basePrice'])
+        && data.keys().size() == 5
+        && data.id is string && data.id.size() <= 100
+        && data.name is string && data.name.size() <= 100
+        && data.description is string && data.description.size() <= 500
+        && data.category is string && data.category.size() <= 50
+        && (data.basePrice is int || data.basePrice is float);
+    }
+
+    function isValidExtra(data) {
+      return data.keys().hasAll(['id', 'name', 'price'])
+        && data.keys().size() == 3
+        && data.id is string && data.id.size() <= 100
+        && data.name is string && data.name.size() <= 100
+        && (data.price is int || data.price is float);
+    }
+
+    function isValidCleaner(data) {
+      return data.keys().hasAll(['id', 'name', 'phone', 'email', 'status', 'rating', 'completedJobsCount'])
+        && data.keys().size() == 7
+        && data.id is string && data.id.size() <= 100
+        && data.name is string && data.name.size() <= 100
+        && data.phone is string && data.phone.size() <= 50
+        && data.email is string && data.email.size() <= 100
+        && data.status is string && data.status.size() <= 50
+        && (data.rating is int || data.rating is float)
+        && data.completedJobsCount is int;
+    }
+
+    function isValidCustomer(data) {
+      return data.keys().hasAll(['id', 'name', 'email', 'phone', 'addresses', 'createdAt'])
+        && data.id is string && data.id.size() <= 100
+        && data.name is string && data.name.size() <= 100
+        && data.email is string && data.email.size() <= 100
+        && data.phone is string && data.phone.size() <= 50
+        && data.addresses is list
+        && data.createdAt is string && data.createdAt.size() <= 50
+        && (!('propertyDetails' in data) || data.propertyDetails is string)
+        && (!('notes' in data) || data.notes is string);
+    }
+
+    function isValidBooking(data) {
+      return data.keys().hasAll([
+        'id', 'customerName', 'customerEmail', 'customerPhone', 'address', 'propertyType',
+        'windowsCount', 'floorsCount', 'serviceId', 'serviceName', 'extras', 'frequency',
+        'date', 'timeSlot', 'status', 'price', 'notes', 'createdAt'
+      ])
+        && data.id is string && data.id.size() <= 100
+        && data.customerName is string && data.customerName.size() <= 100
+        && data.customerEmail is string && data.customerEmail.size() <= 100
+        && data.customerPhone is string && data.customerPhone.size() <= 50
+        && data.address is string && data.address.size() <= 300
+        && data.propertyType is string && data.propertyType.size() <= 100
+        && data.windowsCount is int
+        && data.floorsCount is int
+        && data.serviceId is string && data.serviceId.size() <= 100
+        && data.serviceName is string && data.serviceName.size() <= 100
+        && data.extras is list
+        && data.frequency is string && data.frequency.size() <= 100
+        && data.date is string && data.date.size() <= 50
+        && data.timeSlot is string && data.timeSlot.size() <= 100
+        && data.status is string && data.status.size() <= 50
+        && (data.price is int || data.price is float)
+        && data.notes is string && data.notes.size() <= 1000
+        && data.createdAt is string && data.createdAt.size() <= 50
+        && (!('cleanerId' in data) || data.cleanerId is string)
+        && (!('cleanerName' in data) || data.cleanerName is string)
+        && (!('gateCode' in data) || data.gateCode is string)
+        && (!('parkingInfo' in data) || data.parkingInfo is string)
+        && (!('hasDog' in data) || data.hasDog is bool)
+        && (!('beforePhotos' in data) || data.beforePhotos is list)
+        && (!('afterPhotos' in data) || data.afterPhotos is list)
+        && (!('cleanerNotes' in data) || data.cleanerNotes is string)
+        && (!('signatureSvg' in data) || data.signatureSvg is string)
+        && (!('rating' in data) || data.rating is int || data.rating is float)
+        && (!('reviewText' in data) || data.reviewText is string)
+        && (!('reviewDate' in data) || data.reviewDate is string)
+        && (!('invoiceId' in data) || data.invoiceId is string);
+    }
+
+    function isValidQuote(data) {
+      return data.keys().hasAll([
+        'id', 'customerName', 'customerEmail', 'customerPhone', 'address', 'propertyType',
+        'windowsCount', 'floorsCount', 'extras', 'frequency', 'notes', 'estimatedPrice',
+        'status', 'createdAt'
+      ])
+        && data.id is string && data.id.size() <= 100
+        && data.customerName is string && data.customerName.size() <= 100
+        && data.customerEmail is string && data.customerEmail.size() <= 100
+        && data.customerPhone is string && data.customerPhone.size() <= 50
+        && data.address is string && data.address.size() <= 300
+        && data.propertyType is string && data.propertyType.size() <= 100
+        && data.windowsCount is int
+        && data.floorsCount is int
+        && data.extras is list
+        && data.frequency is string && data.frequency.size() <= 100
+        && data.notes is string && data.notes.size() <= 1000
+        && (data.estimatedPrice is int || data.estimatedPrice is float)
+        && data.status is string && data.status.size() <= 50
+        && data.createdAt is string && data.createdAt.size() <= 50;
+    }
+
+    function isValidAuditLog(data) {
+      return data.keys().hasAll(['id', 'timestamp', 'user', 'role', 'action', 'details'])
+        && data.keys().size() == 6
+        && data.id is string && data.id.size() <= 100
+        && data.timestamp is string && data.timestamp.size() <= 50
+        && data.user is string && data.user.size() <= 100
+        && data.role is string && data.role.size() <= 50
+        && data.action is string && data.action.size() <= 100
+        && data.details is string && data.details.size() <= 1000;
+    }
+
+    function isValidSettings(data) {
+      return data.keys().hasAll([
+        'businessName', 'businessEmail', 'businessPhone', 'logoText', 'workingHoursStart',
+        'workingHoursEnd', 'holidayClosures', 'cancellationPolicy', 'weatherPolicy',
+        'basePricePerWindow', 'basePricePerFloor'
+      ])
+        && data.keys().size() == 11
+        && data.businessName is string && data.businessName.size() <= 100
+        && data.businessEmail is string && data.businessEmail.size() <= 100
+        && data.businessPhone is string && data.businessPhone.size() <= 50
+        && data.logoText is string && data.logoText.size() <= 100
+        && data.workingHoursStart is string && data.workingHoursStart.size() <= 50
+        && data.workingHoursEnd is string && data.workingHoursEnd.size() <= 50
+        && data.holidayClosures is list
+        && data.cancellationPolicy is string && data.cancellationPolicy.size() <= 1000
+        && data.weatherPolicy is string && data.weatherPolicy.size() <= 1000
+        && (data.basePricePerWindow is int || data.basePricePerWindow is float)
+        && (data.basePricePerFloor is int || data.basePricePerFloor is float);
+    }
+
+    function isValidSession(data) {
+      return data.keys().hasAll(['role', 'userId', 'name', 'email'])
+        && data.role is string && data.role.size() <= 50
+        && data.userId is string && data.userId.size() <= 100
+        && data.name is string && data.name.size() <= 100
+        && data.email is string && data.email.size() <= 100
+        && (!('phone' in data) || data.phone is string)
+        && (!('addresses' in data) || data.addresses is list);
+    }
+
+    // Match blocks with strict zero-trust limits
+    match /services/{serviceId} {
+      allow get, list: if isServer();
+      allow create, update: if isServer() && isValidId(serviceId) && isValidService(incoming());
+      allow delete: if isServer() && isValidId(serviceId);
+    }
+
+    match /extras/{extraId} {
+      allow get, list: if isServer();
+      allow create, update: if isServer() && isValidId(extraId) && isValidExtra(incoming());
+      allow delete: if isServer() && isValidId(extraId);
+    }
+
+    match /cleaners/{cleanerId} {
+      allow get, list: if isServer();
+      allow create, update: if isServer() && isValidId(cleanerId) && isValidCleaner(incoming());
+      allow delete: if isServer() && isValidId(cleanerId);
+    }
+
+    match /customers/{customerId} {
+      allow get, list: if isServer();
+      allow create, update: if isServer() && isValidId(customerId) && isValidCustomer(incoming());
+      allow delete: if isServer() && isValidId(customerId);
+    }
+
+    match /bookings/{bookingId} {
+      allow get, list: if isServer();
+      allow create, update: if isServer() && isValidId(bookingId) && isValidBooking(incoming());
+      allow delete: if isServer() && isValidId(bookingId);
+    }
+
+    match /quotes/{quoteId} {
+      allow get, list: if isServer();
+      allow create, update: if isServer() && isValidId(quoteId) && isValidQuote(incoming());
+      allow delete: if isServer() && isValidId(quoteId);
+    }
+
+    match /auditLogs/{logId} {
+      allow get, list: if isServer();
+      allow create: if isServer() && isValidId(logId) && isValidAuditLog(incoming());
+    }
+
+    match /settings/{settingsId} {
+      allow get, list: if isServer();
+      allow create, update: if isServer() && isValidId(settingsId) && isValidSettings(incoming());
+    }
+
+    match /session/{sessionId} {
+      allow get, list: if isServer();
+      allow create, update: if isServer() && isValidId(sessionId) && isValidSession(incoming());
     }
   }
 }

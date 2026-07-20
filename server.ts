@@ -18,6 +18,11 @@ import {
   writeBatch,
   getFirestore
 } from 'firebase/firestore';
+import {
+  getAuth,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword
+} from 'firebase/auth';
 
 import {
   Booking,
@@ -80,10 +85,10 @@ const defaultDb: AppDatabase = {
     }
   ],
   currentSession: {
-    role: 'ADMIN', // Bootstrapped as Admin to let them see everything immediately
-    userId: 'admin-1',
-    name: 'Business Owner (Admin)',
-    email: 'admin@clearviewcleaning.co.uk'
+    role: 'GUEST',
+    userId: 'guest-1',
+    name: 'Guest Visitor',
+    email: ''
   }
 };
 
@@ -92,6 +97,54 @@ let dbCache: AppDatabase = { ...defaultDb };
 
 // Firebase / Firestore setup
 let firestore: any = null;
+let serverAuth: any = null;
+
+enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId?: string | null;
+    email?: string | null;
+    emailVerified?: boolean | null;
+    isAnonymous?: boolean | null;
+    tenantId?: string | null;
+    providerInfo?: {
+      providerId?: string | null;
+      email?: string | null;
+    }[];
+  }
+}
+
+function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: serverAuth?.currentUser?.uid || null,
+      email: serverAuth?.currentUser?.email || null,
+      emailVerified: serverAuth?.currentUser?.emailVerified || null,
+      isAnonymous: serverAuth?.currentUser?.isAnonymous || null,
+      tenantId: serverAuth?.currentUser?.tenantId || null,
+      providerInfo: serverAuth?.currentUser?.providerData?.map((provider: any) => ({
+        providerId: provider.providerId,
+        email: provider.email,
+      })) || []
+    },
+    operationType,
+    path
+  };
+  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  throw new Error(JSON.stringify(errInfo));
+}
 
 try {
   const configPath = path.join(process.cwd(), 'firebase-applet-config.json');
@@ -101,6 +154,8 @@ try {
     firestore = firebaseConfig.firestoreDatabaseId
       ? initializeFirestore(firebaseApp, {}, firebaseConfig.firestoreDatabaseId)
       : getFirestore(firebaseApp);
+    serverAuth = getAuth(firebaseApp);
+    
     console.log('Firebase successfully initialized for server.');
   } else {
     console.warn('firebase-applet-config.json not found. Firestore will be disabled.');
@@ -109,25 +164,48 @@ try {
   console.error('Failed to initialize Firebase:', err);
 }
 
+// Helper to clean undefined fields for Firestore compatibility
+function cleanData(data: any): any {
+  if (data === null || data === undefined) return null;
+  if (Array.isArray(data)) {
+    return data.map(cleanData);
+  }
+  if (typeof data === 'object') {
+    const cleaned: any = {};
+    for (const key of Object.keys(data)) {
+      const val = data[key];
+      if (val !== undefined) {
+        cleaned[key] = cleanData(val);
+      }
+    }
+    return cleaned;
+  }
+  return data;
+}
+
 // Write helper for Firestore
 async function saveFirestoreDoc(collectionName: string, docId: string, data: any) {
   if (!firestore) return;
+  await ensureAuthenticated();
+  const fullPath = `${collectionName}/${docId}`;
   try {
     const docRef = doc(firestore, collectionName, docId);
-    await setDoc(docRef, data);
+    await setDoc(docRef, cleanData(data));
   } catch (err) {
-    console.error(`Failed to save doc ${docId} in collection ${collectionName}:`, err);
+    handleFirestoreError(err, OperationType.WRITE, fullPath);
   }
 }
 
 // Delete helper for Firestore
 async function deleteFirestoreDoc(collectionName: string, docId: string) {
   if (!firestore) return;
+  await ensureAuthenticated();
+  const fullPath = `${collectionName}/${docId}`;
   try {
     const docRef = doc(firestore, collectionName, docId);
     await deleteDoc(docRef);
   } catch (err) {
-    console.error(`Failed to delete doc ${docId} in collection ${collectionName}:`, err);
+    handleFirestoreError(err, OperationType.DELETE, fullPath);
   }
 }
 
@@ -140,44 +218,44 @@ async function seedFirestoreDefaultData() {
 
     // Seed services
     defaultDb.services.forEach(item => {
-      batch.set(doc(firestore, 'services', item.id), item);
+      batch.set(doc(firestore, 'services', item.id), cleanData(item));
     });
 
     // Seed extras
     defaultDb.extras.forEach(item => {
-      batch.set(doc(firestore, 'extras', item.id), item);
+      batch.set(doc(firestore, 'extras', item.id), cleanData(item));
     });
 
     // Seed cleaners
     defaultDb.cleaners.forEach(item => {
-      batch.set(doc(firestore, 'cleaners', item.id), item);
+      batch.set(doc(firestore, 'cleaners', item.id), cleanData(item));
     });
 
     // Seed customers
     defaultDb.customers.forEach(item => {
-      batch.set(doc(firestore, 'customers', item.id), item);
+      batch.set(doc(firestore, 'customers', item.id), cleanData(item));
     });
 
     // Seed settings
-    batch.set(doc(firestore, 'settings', 'business'), defaultDb.settings);
+    batch.set(doc(firestore, 'settings', 'business'), cleanData(defaultDb.settings));
 
     // Seed bookings
     defaultDb.bookings.forEach(item => {
-      batch.set(doc(firestore, 'bookings', item.id), item);
+      batch.set(doc(firestore, 'bookings', item.id), cleanData(item));
     });
 
     // Seed quotes
     defaultDb.quotes.forEach(item => {
-      batch.set(doc(firestore, 'quotes', item.id), item);
+      batch.set(doc(firestore, 'quotes', item.id), cleanData(item));
     });
 
     // Seed auditLogs
     defaultDb.auditLogs.forEach(item => {
-      batch.set(doc(firestore, 'auditLogs', item.id), item);
+      batch.set(doc(firestore, 'auditLogs', item.id), cleanData(item));
     });
 
     // Seed currentSession
-    batch.set(doc(firestore, 'session', 'current'), defaultDb.currentSession);
+    batch.set(doc(firestore, 'session', 'current'), cleanData(defaultDb.currentSession));
 
     await batch.commit();
     console.log('Seeding complete!');
@@ -200,6 +278,47 @@ function readDbLocal(): AppDatabase {
   return defaultDb;
 }
 
+// Secure server-side Firebase Authentication as a system service account
+async function authenticateServer() {
+  if (!firestore || !serverAuth) return;
+  try {
+    const email = 'server@clearviewpro.internal';
+    const password = 'secureServerPassword123!';
+    try {
+      await signInWithEmailAndPassword(serverAuth, email, password);
+      console.log('Firebase Server successfully authenticated as system.');
+    } catch (err: any) {
+      if (
+        err.code === 'auth/user-not-found' || 
+        err.code === 'auth/invalid-credential' || 
+        err.code === 'auth/cannot-find-user-locally' || 
+        err.code === 'auth/user-disabled'
+      ) {
+        console.log('System account not found or credentials invalid. Registering system account...');
+        await createUserWithEmailAndPassword(serverAuth, email, password);
+        console.log('Firebase Server successfully registered and authenticated as system.');
+      } else {
+        throw err;
+      }
+    }
+  } catch (err) {
+    console.error('Failed to authenticate Firebase Server:', err);
+  }
+}
+
+let serverAuthAttempted = false;
+
+// Ensure the system service account is logged in before executing database operations
+async function ensureAuthenticated() {
+  if (!firestore || !serverAuth) return;
+  if (serverAuth.currentUser && serverAuth.currentUser.email === 'server@clearviewpro.internal') {
+    return;
+  }
+  if (serverAuthAttempted) return;
+  serverAuthAttempted = true;
+  await authenticateServer();
+}
+
 // Sync Firestore data on startup
 async function syncFromFirestore() {
   if (!firestore) {
@@ -207,6 +326,9 @@ async function syncFromFirestore() {
     dbCache = readDbLocal();
     return;
   }
+
+  // Authenticate as server system user before performing operations
+  await ensureAuthenticated();
 
   try {
     console.log('Syncing database cache with Firestore...');
@@ -370,6 +492,88 @@ app.post('/api/session/switch', async (req, res) => {
   writeDb(db);
   await saveFirestoreDoc('session', 'current', db.currentSession);
   res.json(db.currentSession);
+});
+
+app.post('/api/auth/login', async (req, res) => {
+  const { email, password } = req.body;
+  if (!email || !password) {
+    return res.status(400).json({ message: 'Email and password are required.' });
+  }
+
+  const db = readDb();
+
+  // 1. Check Owner / Admin credentials
+  if (email.toLowerCase() === 'ownertest@clearview.com' && password === 'admin123') {
+    db.currentSession = {
+      role: 'ADMIN',
+      userId: 'admin-1',
+      name: 'Thomas Higgins',
+      email: 'ownertest@clearview.com'
+    };
+
+    addAuditLog(
+      db,
+      db.currentSession.name,
+      'ADMIN',
+      'Portal Login',
+      'Business Owner authenticated successfully.'
+    );
+
+    writeDb(db);
+    await saveFirestoreDoc('session', 'current', db.currentSession);
+    return res.json(db.currentSession);
+  }
+
+  // 2. Check Cleaner credentials
+  const cleaner = db.cleaners.find((c: any) => c.email.toLowerCase() === email.toLowerCase());
+  if (cleaner) {
+    db.currentSession = {
+      role: 'CLEANER',
+      userId: cleaner.id,
+      name: cleaner.name,
+      email: cleaner.email,
+      phone: cleaner.phone
+    };
+
+    addAuditLog(
+      db,
+      cleaner.name,
+      'CLEANER',
+      'Portal Login',
+      `Technician ${cleaner.name} logged into technician portal.`
+    );
+
+    writeDb(db);
+    await saveFirestoreDoc('session', 'current', db.currentSession);
+    return res.json(db.currentSession);
+  }
+
+  // 3. Check Customer credentials
+  const customer = db.customers.find((c: any) => c.email.toLowerCase() === email.toLowerCase());
+  if (customer) {
+    db.currentSession = {
+      role: 'CUSTOMER',
+      userId: customer.id,
+      name: customer.name,
+      email: customer.email,
+      phone: customer.phone,
+      addresses: customer.addresses
+    };
+
+    addAuditLog(
+      db,
+      customer.name,
+      'CUSTOMER',
+      'Portal Login',
+      `Customer ${customer.name} logged into customer portal.`
+    );
+
+    writeDb(db);
+    await saveFirestoreDoc('session', 'current', db.currentSession);
+    return res.json(db.currentSession);
+  }
+
+  return res.status(401).json({ message: 'Invalid portal credentials or user not found.' });
 });
 
 // 2. Services & Extras
